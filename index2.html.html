@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #f7f7f5; color: #14140f; font-family: -apple-system, "Segoe UI", Arial, sans-serif; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+  .header h1 { font-size: 20px; font-weight: 600; margin: 0; }
+  .header .sub { font-size: 13px; color: #6b6a63; margin-top: 4px; }
+  .badge { font-size: 11px; padding: 3px 9px; border-radius: 999px; font-weight: 600; }
+  .badge.ok { background: #e6f4ea; color: #1e7e34; }
+  .badge.alert { background: #fbeaea; color: #a94442; }
+  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 20px; }
+  .kpi { background: #fff; border: 1px solid #e4e3dd; border-radius: 10px; padding: 12px 14px; }
+  .kpi .label { font-size: 11px; color: #6b6a63; margin-bottom: 6px; }
+  .kpi .value { font-size: 22px; font-weight: 600; line-height: 1; }
+  .kpi .delta { font-size: 11px; margin-top: 6px; }
+  .kpi .delta.down { color: #1e7e34; }
+  .kpi .delta.up { color: #a94442; }
+  .kpi .delta.flat { color: #8a897f; }
+  .kpi.warn .value { color: #a94442; }
+  .panel { background: #fff; border: 1px solid #e4e3dd; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  .panel h2 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+  .panel .hint { font-size: 11px; color: #8a897f; margin: 0 0 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; color: #6b6a63; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #e4e3dd; }
+  td { padding: 6px 8px; border-bottom: 1px solid #f0efe9; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.late td { background: #fdf0f0; }
+  .cg-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 10px; border-radius: 999px; margin: 2px 4px 2px 0; background: #f0efe9; color: #4a4a44; border: none; cursor: pointer; font-family: inherit; }
+  .cg-btn:hover { background: #e4e3dd; }
+  .cg-btn.warn { background: #fbeaea; color: #a94442; }
+  .cg-btn.warn:hover { background: #f5d5d5; }
+  .cg-btn .chev { font-size: 9px; opacity: 0.6; }
+  .cg-detail { display: none; background: #faf9f6; border: 1px solid #e4e3dd; border-radius: 8px; padding: 10px 12px; margin: 4px 0 10px; font-size: 12px; }
+  .cg-detail.open { display: block; }
+  .cg-detail table { font-size: 11.5px; }
+  .cg-detail th { padding: 4px 6px; }
+  .cg-detail td { padding: 4px 6px; }
+  .urgent-box { background: #fff8e1; border: 1px solid #f0ad4e; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #8a6d3b; margin-bottom: 16px; }
+  .footer { font-size: 11px; color: #8a897f; margin-top: 8px; line-height: 1.6; }
+  a.ic { color: #185fa5; text-decoration: none; border-bottom: 1px dotted #185fa5; }
+  tr.oc-row { cursor: pointer; }
+  tr.oc-row:hover td { background: #faf9f6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <h1>Abastecimiento · iConstruye</h1>
+      <div class="sub" id="fechaHoy"></div>
+    </div>
+    <span class="badge alert" id="alertBadge"></span>
+  </div>
+
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <div class="urgent-box" id="urgentBox"></div>
+
+  <div class="panel">
+    <h2>Tendencia — PMs sin OC y OC en aprobación (últimos 13 días)</h2>
+    <div style="display:flex; gap:16px; margin-bottom:10px; font-size:12px; color:#6b6a63;">
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#2a78d6;margin-right:4px;"></span>PMs sin OC (total)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#e34948;margin-right:4px;"></span>PMs &gt;48h hábiles</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#1baf7a;margin-right:4px;"></span>OC en aprobación</span>
+    </div>
+    <div style="position: relative; width: 100%; height: 260px;">
+      <canvas id="trendChart" role="img" aria-label="Gráfico de líneas mostrando la evolución diaria de PMs sin OC totales, PMs mayores a 48 horas y OC en aprobación">Tendencia diaria de PMs sin OC y OC en aprobación.</canvas>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>PMs &gt;48 hrs hábiles por Centro de Gestión</h2>
+      <div class="hint">Clic en un centro para ver el detalle de PMs</div>
+      <div id="cgMayor"></div>
+    </div>
+    <div class="panel">
+      <h2>PMs ≤48 hrs hábiles por Centro de Gestión</h2>
+      <div class="hint">Clic en un centro para ver el detalle de PMs</div>
+      <div id="cgMenor"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>OC en Aprobación por Centro de Gestión</h2>
+    <div class="hint">Clic en una fila para ver el detalle de OC (proveedor y monto)</div>
+    <table id="ocAprobTable"></table>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>OC Guardadas — Solicitante: Giovanni Concha</h2>
+      <table id="ocGuardadasTable"></table>
+    </div>
+    <div class="panel">
+      <h2>Cotizaciones Abiertas</h2>
+      <table id="cotizacionesTable"></table>
+    </div>
+  </div>
+
+  <div class="footer">
+    Fuente: iConstruye (cl.iconstruye.com), extraído mediante navegación asistida — no existe conector API disponible, por lo que este panel se actualiza manualmente cada vez que corre el reporte diario. &gt;48 hrs hábiles = más de 2 días hábiles desde la Fecha de Aprobación del PM. Urgente = ícono "!" en iConstruye. Los enlaces abren el módulo correspondiente en iConstruye (requiere iniciar sesión) ya que no existen URLs fijas por registro individual. Última actualización: <span id="lastUpdate"></span>.
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script>
+const FECHA_ACTUALIZACION = "10-07-2026 15:30";
+
+const PM_BY_CG = {
+"380 Ascotan Etapa 1":[["380-120","09-07-2026",1,0]],
+"135 Yungay 2.500":[["135-942","10-07-2026",0,0],["135-940","08-07-2026",2,0],["135-939","09-07-2026",1,0],["135-938","10-07-2026",0,0],["135-937","08-07-2026",2,0],["135-936","08-07-2026",2,0],["135-935","10-07-2026",0,0],["135-933","08-07-2026",2,0],["135-934","08-07-2026",2,0],["135-929","06-07-2026",4,0],["135-926","02-07-2026",6,0],["135-925","06-07-2026",4,0]],
+"166 LO CRUZAT":[["166-363","09-07-2026",1,0],["166-362","09-07-2026",1,0],["166-361","09-07-2026",1,0],["166-359","09-07-2026",1,0],["166-360","09-07-2026",1,0],["166-358","07-07-2026",3,0],["166-355","07-07-2026",3,0],["166-349","07-07-2026",3,0],["166-348","07-07-2026",3,0],["166-346","07-07-2026",3,0],["166-353","07-07-2026",3,0],["166-345","07-07-2026",3,0]],
+"155 HABILITACIÓN PROYECTO REGUS":[["155-46","09-07-2026",1,0]],
+"770 PVTA. EDIF. COSTAVENTURA ET2":[["770-39","09-07-2026",1,0]],
+"181 Condominio Mirador de Costaventura II":[["181-769","09-07-2026",1,1],["181-768","09-07-2026",1,0],["181-767","08-07-2026",2,0],["181-766","08-07-2026",2,0],["181-765","08-07-2026",2,0],["181-764","08-07-2026",2,0]],
+"173 BRISAS DEL MAULE 6":[["173-89","07-07-2026",3,0]],
+"753 PVTA. EDIF. SANTA ROSA":[["753-13","09-07-2026",1,0]],
+"768 PVTA. EDIF. LA GRANJA ET 1 Y 2":[["768-110","09-07-2026",1,0],["768-109","09-07-2026",1,0]],
+"765 PVTA Edificio Alto Cerrillos":[["765-21","09-07-2026",1,0]],
+"783 PVTA Fuchslocher 1":[["783-39","09-07-2026",1,0],["783-38","09-07-2026",1,0],["783-37","09-07-2026",1,0],["783-36","09-07-2026",1,0],["783-35","09-07-2026",1,0]],
+"484 Fuchslocher 2":[["484-69","07-07-2026",3,1],["484-67","02-07-2026",6,0],["484-66","02-07-2026",6,0]],
+"190 Terrazas del Bicentenario":[["190-423","08-07-2026",2,0],["190-421","07-07-2026",3,0],["190-419","06-07-2026",4,0],["190-422","07-07-2026",3,0]],
+"764 PVTA.BRISAS DEL MAULE 5":[["764-150","09-07-2026",1,1]],
+"481 Electricidad Ascotan Etapa":[["481-81","02-07-2026",6,0]],
+"479 - ELECTRICIDAD COND. UVAS Y EL VIENTO ET3":[["479-125","02-07-2026",6,0]],
+"372 Vicuña Mackenna":[["372-98","05-06-2026",25,0]],
+"312 Parque Los Reyes":[["312-162","04-06-2026",26,0]],
+"383 Condominio Fuchslocher 1.170":[["383-101","13-02-2026",105,0]],
+"385 Valle Norte 1 Talca":[["385-91","05-02-2026",111,1]]
+};
+
+const OC_BY_CG = {
+"166 LO CRUZAT":[["166-335","AUSIN HNOS S A","10-07-2026","$ 1.313.760,00"],["166-334","EASY RETAIL S.A.","09-07-2026","$ 1.727.880,00"],["166-333","COPEC SA","09-07-2026","$ 3.593.700,00"],["166-320","MAFORSA","06-07-2026","$ 67.077.848,60"]],
+"184 Fuchslocher Oriente":[["184-599","NEWENKELEN SPA","09-07-2026","$ 3.213.000,00"],["184-600","G y T Gruas y Comercial SPA","09-07-2026","$ 1.725.500,00"],["184-601","MAKISUR LTDA","09-07-2026","$ 1.632.680,00"],["184-602","SOCIEDAD DE TRANSPORTES Y GRUAS MIRAMAR SPA","09-07-2026","$ 1.785.000,00"],["184-603","DARTEL","09-07-2026","$ 324.013,20"],["184-604","CONSTRUCTORA CHANDIA PARDO SPA","09-07-2026","$ 4.767.616,00"],["184-605","CONSTRUCTORA CHANDIA PARDO SPA","09-07-2026","$ 4.436.855,50"],["184-606","COMERCIAL ARRISERVI LIMITADA","09-07-2026","$ 412.692,00"]],
+"01 Oficina Boetsch":[["01-1366","DIMERC","09-07-2026","$ 160.090,70"]],
+"397 Bosques de Alerce (Puerto Montt)":[["397-15","SOCIEDAD DE PROFESIONALES CONTRERAS Y VALENZUELA LTDA","09-07-2026","UF 46,00"],["397-14","FLC INGENIERÍA EN CLIMATIZACION SPA","09-07-2026","UF 47,60"],["397-13","INGENIERIA Y SERVICIOS PROPAMAT SPA","09-07-2026","UF 529,55"],["397-12","YOHERLI MARIANELA ROBLES ZAMBRANO","09-07-2026","UF 185,49"],["397-11","OJEDA ARQUITECTOS LIMITADA","09-07-2026","UF 2.000,00"],["397-10","ASESORIAS PROFESIONALES COLTAUCO LIMITADA","09-07-2026","UF 290,00"],["397-9","RUZ Y VUKASOVIC INGENIERIA DE SUELOS LIMITADA","08-07-2026","UF 13,09"],["397-8","ALEJANDRO PIZARRO Y COMPAÑIA SPA","30-06-2026","UF 297,50"],["397-7","SOCIEDAD DE PROFESIONALES CONTRERAS Y VALENZUELA LTDA","16-06-2026","$ 46,00"],["397-5","SOCIEDAD DE PROFESIONALES FPF LIMITADA","16-06-2026","UF 900,00"]],
+"190 Terrazas del Bicentenario":[["190-497","BOETSCH S.A.","09-07-2026","$ 186.592,00"],["190-485","ESPAC CONSTRUCCION S.A.","07-07-2026","$ 2.975.000,00"],["190-484","EL SOL SpA","06-07-2026","$ 561.680,00"],["190-481","ALTA SISTEMAS SPA","02-07-2026","$ 1.566.040,00"],["190-455","BOETSCH S.A.","23-06-2026","$ 9.929.029,18"]],
+"385 Valle Norte 1 Talca":[["385-356","INNOVATION GROUP LIMITADA","09-07-2026","$ 3.308.200,00"],["385-355","SERVICIOS DE MANEJO INTGRADO DE PLAGAS Y SANITIZACIONES SPA","09-07-2026","$ 214.200,00"],["385-354","SOCIEDAD PEZOA & RODRIGUEZ LIMITADA","09-07-2026","UF 135,66"]],
+"383 Condominio Fuchslocher 1.170":[["383-300","COMERCIAL ARRISERVI LIMITADA","09-07-2026","$ 245.732,62"],["383-299","COMERCIAL ARRISERVI LIMITADA","09-07-2026","$ 463.243,20"]],
+"193 Mirador de Costaventura 3 – Farellón":[["193-4","SODIMAC","09-07-2026","$ 9.239.381,17"]],
+"765 PVTA Edificio Alto Cerrillos":[["765-19","SHERWIN-WILLIAMS CHILE","09-07-2026","$ 1.021.216,35"]],
+"783 PVTA Fuchslocher 1":[["783-28","COMERCIAL ARRISERVI LIMITADA","09-07-2026","$ 673.325,80"],["783-27","SHERWIN-WILLIAMS CHILE","09-07-2026","$ 1.235.696,00"],["783-26","EASY RETAIL S.A.","09-07-2026","$ 1.059.146,43"]],
+"767 PVTA. EDIFICIO LAS QUEMAS OSORNO":[["767-110","MAQUINARIAS AUSTRAL S.A.","09-07-2026","$ 921.595,50"]],
+"772 PVTA. EDIF. CENTRO ORIENTE":[["772-3","MAX SERVICES SPA","09-07-2026","UF 16,66"],["772-2","SODIMAC","09-07-2026","$ 255.151,47"]],
+"764 PVTA.BRISAS DEL MAULE 5":[["764-158","DIMACO CONSTITUCION LTDA.","09-07-2026","$ 735.072,52"]],
+"479 - ELECTRICIDAD COND. UVAS Y EL VIENTO ET3":[["479-289","JOSE LUIS DIAZ MILLAN SERVICIOS DE PLOTEO Y DISENO E.I.R.L.","09-07-2026","$ 92.397,55"]],
+"768 PVTA. EDIF. LA GRANJA ET 1 Y 2":[["768-101","SERVICIOS HOME 360 CAROL MARIBEL MORALES TORO E.I.R.L.","09-07-2026","$ 1.011.595,20"]],
+"395 CG 395":[["395-18","GRAVVA INGENIEROS CIVILES LIMITADA","08-07-2026","UF 33,00"],["395-17","SANTOLAYA INGENIEROS CONSULTORES SPA","08-07-2026","UF 411,74"]],
+"312 Parque Los Reyes":[["312-714","INOVO INVERSIONES SPA","08-07-2026","UF 137,97"],["312-713","LIDZ SPA","08-07-2026","UF 23,32"]],
+"372 Vicuña Mackenna":[["372-360","LIDZ SPA","08-07-2026","UF 23,32"]],
+"353 Proyecto Santa Rosa":[["353-489","LIDZ SPA","08-07-2026","UF 23,32"]],
+"466 ELECTRICO LO CRUZAT":[["466-36","CELO FIJACIONES CHILE SPA","06-07-2026","$ 27.036.562,00"]],
+"990 Sanitario Terrazas del Bicentenario":[["990-55","POLIFUSIÓN S.A.","01-07-2026","$ 6.855.509,08"]],
+"234 Deptos Balmaceda (Antofagasta)":[["234-113","GUBBINS ASOCIADOS SPA","19-06-2026","$ 520.012,15"]],
+"368 Proyecto La Granja":[["368-470","GARDENER SPA","10-06-2026","UF 23,80"]]
+};
+
+const OC_GUARDADAS = [
+  {nombre:"Mat. Varios", cg:"173 BRISAS DEL MAULE 6", fecha:"09-07-2026", dias:1, atrasada:false}
+];
+const COTIZACIONES = [
+  {num:"184-107", nombre:"ESPUMA EXPANSIVA INIFUGA", cg:"184 Fuchslocher Oriente", cierre:"10-07-2026", ofertas:4},
+  {num:"490-20", nombre:"TABLERO EMBUTIDO !", cg:"490 Electricidad Terrazas del Bicentenario", cierre:"13-07-2026", ofertas:1},
+  {num:"166-46", nombre:"CINTA MULTIUSO TELA GRIS", cg:"166 LO CRUZAT", cierre:"10-07-2026", ofertas:3},
+  {num:"966-9", nombre:"Medidores agua potable", cg:"966 Sanitario Lo Cruzat", cierre:"10-07-2026", ofertas:10}
+];
+const TREND = [
+  {fecha:"2026-06-26", pm_total:48, pm_mayor48:10, oc_aprobacion_total:35},
+  {fecha:"2026-06-30", pm_total:57, pm_mayor48:45, oc_aprobacion_total:21},
+  {fecha:"2026-07-01", pm_total:57, pm_mayor48:56, oc_aprobacion_total:21},
+  {fecha:"2026-07-02", pm_total:69, pm_mayor48:44, oc_aprobacion_total:22},
+  {fecha:"2026-07-03", pm_total:58, pm_mayor48:46, oc_aprobacion_total:33},
+  {fecha:"2026-07-04", pm_total:117, pm_mayor48:54, oc_aprobacion_total:25},
+  {fecha:"2026-07-05", pm_total:116, pm_mayor48:54, oc_aprobacion_total:26},
+  {fecha:"2026-07-06", pm_total:116, pm_mayor48:71, oc_aprobacion_total:26},
+  {fecha:"2026-07-07", pm_total:104, pm_mayor48:62, oc_aprobacion_total:37},
+  {fecha:"2026-07-08", pm_total:88, pm_mayor48:44, oc_aprobacion_total:73},
+  {fecha:"2026-07-09", pm_total:99, pm_mayor48:60, oc_aprobacion_total:58},
+  {fecha:"2026-07-10", pm_total:57, pm_mayor48:23, oc_aprobacion_total:54}
+];
+const PREV = { pm_total:99, pm_mayor48:60, oc_aprobacion_total:58, oc_aprobacion_clp:318135370.72, oc_guardadas_total:0, cotizaciones_abiertas_total:1 };
+
+const IC_LINKS = {
+  pm: "https://cl.iconstruye.com/PedidoMateriales/buscar_estado.aspx",
+  oc: "https://cl.iconstruye.com/OrdenCompra/buscar_compra.aspx",
+  cot: "https://cl.iconstruye.com/Cotizacion/buscar_compra.aspx"
+};
+function icLink(modulo, texto){
+  return `<a class="ic" href="${IC_LINKS[modulo]}" target="_blank" rel="noopener" title="Abrir módulo en iConstruye y buscar ${texto} manualmente (requiere iniciar sesión)" onclick="event.stopPropagation()">${texto}</a>`;
+}
+function fmtCLP(n){ return "$" + Math.round(n).toLocaleString("es-CL"); }
+function fmtUF(n){ return n ? "UF " + n.toLocaleString("es-CL", {minimumFractionDigits:2, maximumFractionDigits:2}) : "-"; }
+function deltaHtml(curr, prev, lowerIsBetter){
+  if(prev === null || prev === undefined) return '<div class="delta flat">sin dato previo</div>';
+  const diff = curr - prev;
+  if(diff === 0) return '<div class="delta flat">= ayer</div>';
+  const better = lowerIsBetter ? diff < 0 : diff > 0;
+  const arrow = diff < 0 ? "&#9660;" : "&#9650;";
+  return `<div class="delta ${better ? "down" : "up"}">${arrow} ${Math.abs(diff).toLocaleString("es-CL")} vs ayer</div>`;
+}
+
+const PM_TOTAL = Object.values(PM_BY_CG).reduce((s,v)=>s+v.length,0);
+const PM_MAYOR48 = Object.values(PM_BY_CG).reduce((s,v)=>s+v.filter(r=>r[2]>2).length,0);
+const PM_URGENTES_LISTA = Object.entries(PM_BY_CG).flatMap(([cg,rows])=>rows.filter(r=>r[3]===1).map(r=>r[0]));
+const OC_TOTAL = Object.values(OC_BY_CG).reduce((s,v)=>s+v.length,0);
+function parseMonto(s){
+  s=s.trim();
+  if(s.startsWith('UF')) return {clp:0, uf: parseFloat(s.replace('UF','').trim().replace(/\./g,'').replace(',','.'))};
+  if(s.startsWith('$')) return {clp: parseFloat(s.replace('$','').trim().replace(/\./g,'').replace(',','.')), uf:0};
+  return {clp:0, uf:0};
+}
+let OC_CLP=0, OC_UF=0;
+Object.values(OC_BY_CG).forEach(rows=>rows.forEach(r=>{ const m=parseMonto(r[3]); OC_CLP+=m.clp; OC_UF+=m.uf; }));
+
+const TODAY = {
+  fecha: "10-07-2026",
+  pm_total: PM_TOTAL, pm_mayor48: PM_MAYOR48, pm_menor48: PM_TOTAL-PM_MAYOR48, pm_urgentes: PM_URGENTES_LISTA.length,
+  pm_urgentes_lista: PM_URGENTES_LISTA,
+  oc_aprobacion_total: OC_TOTAL, oc_aprobacion_clp: OC_CLP, oc_aprobacion_uf: OC_UF,
+  oc_guardadas_total: OC_GUARDADAS.length, oc_guardadas_atrasadas: OC_GUARDADAS.filter(o=>o.atrasada).length,
+  cotizaciones_abiertas_total: COTIZACIONES.length
+};
+
+document.getElementById("fechaHoy").textContent = "Viernes, 10 de julio de 2026";
+document.getElementById("lastUpdate").textContent = FECHA_ACTUALIZACION;
+
+const badge = document.getElementById("alertBadge");
+if(TODAY.pm_mayor48 > 0 || TODAY.pm_urgentes > 0){
+  badge.className = "badge alert";
+  badge.textContent = `${TODAY.pm_mayor48} PMs >48h · ${TODAY.pm_urgentes} urgentes`;
+} else {
+  badge.className = "badge ok";
+  badge.textContent = "Sin alertas";
+}
+
+const kpis = [
+  {label:"PMs sin OC (total)", value: TODAY.pm_total, prev: PREV.pm_total, lowerBetter:true},
+  {label:"PMs >48h hábiles", value: TODAY.pm_mayor48, warn:true, prev: PREV.pm_mayor48, lowerBetter:true},
+  {label:"PMs urgentes", value: TODAY.pm_urgentes, warn: TODAY.pm_urgentes>0},
+  {label:"OC en aprobación", value: TODAY.oc_aprobacion_total, sub: fmtCLP(TODAY.oc_aprobacion_clp), prev: PREV.oc_aprobacion_total, lowerBetter:true},
+  {label:"OC guardadas (Giovanni)", value: TODAY.oc_guardadas_total, sub: TODAY.oc_guardadas_atrasadas + " atrasadas", prev: PREV.oc_guardadas_total, lowerBetter:true},
+  {label:"Cotizaciones abiertas", value: TODAY.cotizaciones_abiertas_total, prev: PREV.cotizaciones_abiertas_total, lowerBetter:false}
+];
+document.getElementById("kpiRow").innerHTML = kpis.map(k => `
+  <div class="kpi ${k.warn ? "warn" : ""}">
+    <div class="label">${k.label}</div>
+    <div class="value">${k.value}</div>
+    ${k.sub ? `<div class="delta flat">${k.sub}</div>` : ""}
+    ${k.prev !== undefined ? deltaHtml(k.value, k.prev, k.lowerBetter) : ""}
+  </div>
+`).join("");
+
+document.getElementById("urgentBox").innerHTML = TODAY.pm_urgentes > 0
+  ? `PMs urgentes (marcados con !): ${TODAY.pm_urgentes_lista.map(pm => icLink("pm", pm)).join(", ")}`
+  : "Sin PMs urgentes pendientes.";
+
+let uid = 0;
+function pmCgSection(containerId, warnMode){
+  const entries = Object.entries(PM_BY_CG)
+    .map(([cg,rows]) => [cg, rows.filter(r => warnMode ? r[2]>2 : r[2]<=2)])
+    .filter(([,rows]) => rows.length>0)
+    .sort((a,b)=>b[1].length-a[1].length);
+  const html = entries.map(([cg,rows]) => {
+    const id = "pmdet" + (uid++);
+    const rowsHtml = rows.map(r => `<tr><td>${icLink("pm", r[0])}${r[3]?' <span title="Urgente">!</span>':''}</td><td class="num">${r[1]}</td><td class="num">${r[2]} d.h.</td></tr>`).join("");
+    return `
+      <button class="cg-btn ${warnMode?"warn":""}" onclick="document.getElementById('${id}').classList.toggle('open')">${cg} (${rows.length}) <span class="chev">▾</span></button>
+      <div class="cg-detail" id="${id}">
+        <table><tr><th>PM</th><th class="num">Fecha aprob.</th><th class="num">Antigüedad</th></tr>${rowsHtml}</table>
+      </div>`;
+  }).join("");
+  document.getElementById(containerId).innerHTML = html;
+}
+pmCgSection("cgMayor", true);
+pmCgSection("cgMenor", false);
+
+function ocAprobTable(){
+  const entries = Object.entries(OC_BY_CG).map(([cg,rows])=>{
+    let clp=0, uf=0;
+    rows.forEach(r=>{ const m=parseMonto(r[3]); clp+=m.clp; uf+=m.uf; });
+    return {cg, rows, n: rows.length, clp, uf};
+  }).sort((a,b)=> (b.clp+b.uf*950) - (a.clp+a.uf*950));
+  const rowsHtml = entries.map(e => {
+    const id = "ocdet" + (uid++);
+    const detailRows = e.rows.map(r => `<tr><td>${icLink("oc", r[0])}</td><td>${r[1]}</td><td class="num">${r[2]}</td><td class="num">${r[3]}</td></tr>`).join("");
+    return `
+      <tr class="oc-row" onclick="document.getElementById('${id}').classList.toggle('open')">
+        <td>${e.cg} <span style="opacity:.5;font-size:10px;">▾</span></td>
+        <td class="num">${e.n}</td>
+        <td class="num">${fmtCLP(e.clp)}</td>
+        <td class="num">${fmtUF(e.uf)}</td>
+      </tr>
+      <tr><td colspan="4" style="padding:0; border:none;">
+        <div class="cg-detail" id="${id}">
+          <table><tr><th>N° OC</th><th>Proveedor</th><th class="num">Fecha</th><th class="num">Monto</th></tr>${detailRows}</table>
+        </div>
+      </td></tr>`;
+  }).join("");
+  document.getElementById("ocAprobTable").innerHTML = `<tr><th>Centro de Gestión</th><th class="num">N° OC</th><th class="num">Monto CLP</th><th class="num">Monto UF</th></tr>${rowsHtml}`;
+}
+ocAprobTable();
+
+document.getElementById("ocGuardadasTable").innerHTML = `
+  <tr><th>Nombre</th><th>CG</th><th class="num">Días hábiles</th></tr>
+  ${OC_GUARDADAS.map(r => `<tr class="${r.atrasada ? "late" : ""}"><td>${icLink("oc", r.nombre)}</td><td>${r.cg}</td><td class="num">${r.dias}${r.atrasada ? " ⚠" : ""}</td></tr>`).join("")}
+`;
+
+document.getElementById("cotizacionesTable").innerHTML = `
+  <tr><th>N°</th><th>Nombre</th><th class="num">Ofertas</th><th class="num">Cierre</th></tr>
+  ${COTIZACIONES.map(r => `<tr><td>${icLink("cot", r.num)}</td><td>${r.nombre}</td><td class="num">${r.ofertas}</td><td class="num">${r.cierre}</td></tr>`).join("")}
+`;
+
+new Chart(document.getElementById("trendChart"), {
+  type: "line",
+  data: {
+    labels: TREND.map(d => d.fecha.slice(5)),
+    datasets: [
+      { label: "PMs sin OC (total)", data: TREND.map(d=>d.pm_total), borderColor: "#2a78d6", backgroundColor: "rgba(42,120,214,0.08)", fill:true, tension:0.25, borderWidth:2, pointRadius:3 },
+      { label: "PMs >48h hábiles", data: TREND.map(d=>d.pm_mayor48), borderColor: "#e34948", backgroundColor: "rgba(227,73,72,0.08)", fill:true, tension:0.25, borderWidth:2, pointRadius:3, borderDash:[5,3] },
+      { label: "OC en aprobación", data: TREND.map(d=>d.oc_aprobacion_total), borderColor: "#1baf7a", backgroundColor: "rgba(27,175,122,0.08)", fill:true, tension:0.25, borderWidth:2, pointRadius:3, borderDash:[2,2] }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: "#e1e0d9" } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+</script>
+</body>
+</html>
