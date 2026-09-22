@@ -54,6 +54,15 @@ function deviationValue(record: JsonRecord): number | null {
   return detectedKey ? optionalNumberValue(record[detectedKey]) : null;
 }
 
+function deviationDiagnostics(record: JsonRecord): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(record).filter(([key]) => {
+      const normalized = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      return /(desvi|atras|retras|plazo|program|fecha|dia)/.test(normalized);
+    }),
+  );
+}
+
 function textValue(value: unknown): string {
   return value === undefined || value === null ? "" : String(value).trim();
 }
@@ -301,7 +310,8 @@ function mapBuildingProgress(payload: unknown, requestedActivity?: string): Buil
 export async function getDashboard(selectedProjectId?: number): Promise<DashboardPayload> {
   const token = await authenticate();
   const worksPayload = await apiGet("/api/v1/avance/obras", token);
-  const works = rows(worksPayload)
+  const workRows = rows(worksPayload);
+  const works = workRows
     .map((row) => ({
       id: numberValue(pick(row, "ID_OBR")),
       name: textValue(pick(row, "NOMBRE_OBR", "Nombre_Obr")),
@@ -313,6 +323,25 @@ export async function getDashboard(selectedProjectId?: number): Promise<Dashboar
   const controlResults = await Promise.allSettled(
     works.map((work) => apiGet("/api/v1/avance/control", token, { idObra: String(work.id) })),
   );
+
+  for (const [index, work] of works.entries()) {
+    const workRow = workRows.find((row) => numberValue(pick(row, "ID_OBR")) === work.id) ?? {};
+    const result = controlResults[index];
+    const controlRows = result.status === "fulfilled" ? rows(result.value) : [];
+    const latestControlRow = controlRows.toSorted((a, b) => {
+      const aDate = Date.parse(dateValue(pick(a, "FechaAvance", "FECHA_AVANCE"))) || 0;
+      const bDate = Date.parse(dateValue(pick(b, "FechaAvance", "FECHA_AVANCE"))) || 0;
+      return aDate - bDate;
+    }).at(-1) ?? {};
+    console.info("api-schema-diagnostic", JSON.stringify({
+      projectId: work.id,
+      projectName: work.name,
+      workKeys: Object.keys(workRow),
+      workCandidates: deviationDiagnostics(workRow),
+      latestControlKeys: Object.keys(latestControlRow),
+      latestControlCandidates: deviationDiagnostics(latestControlRow),
+    }));
+  }
 
   const projects: ProjectSummary[] = works.map((work, index) => {
     const result = controlResults[index];
