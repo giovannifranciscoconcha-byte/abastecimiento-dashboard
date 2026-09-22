@@ -24,8 +24,9 @@ function pick(record: JsonRecord, ...keys: string[]): unknown {
 function numberValue(value: unknown): number {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value === "string") {
-    const normalized = value.trim().replace("%", "").replace(",", ".");
-    const parsed = Number(normalized);
+    const normalized = value.trim().replace(",", ".");
+    const numericText = normalized.match(/[-+]?\d+(?:\.\d+)?/)?.[0];
+    const parsed = numericText === undefined ? Number.NaN : Number(numericText);
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
@@ -35,6 +36,22 @@ function optionalNumberValue(value: unknown): number | null {
   if (value === undefined || value === null || value === "") return null;
   const parsed = numberValue(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function deviationValue(record: JsonRecord): number | null {
+  const explicitKeys = [
+    "DesviacionDias", "DESVIACION_DIAS", "DesvDias", "DESV_DIAS",
+    "DiasDesviacion", "DIAS_DESVIACION", "DiasAtraso", "DIAS_ATRASO",
+    "AtrasoDias", "ATRASO_DIAS", "DiasRetraso", "DIAS_RETRASO",
+  ];
+  const explicit = optionalNumberValue(pick(record, ...explicitKeys));
+  if (explicit !== null) return explicit;
+
+  const detectedKey = Object.keys(record).find((key) => {
+    const normalized = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return /(desvi|atras|retras).*(dia|d[ií]a)|(?:dia|d[ií]a).*(desvi|atras|retras)/i.test(normalized);
+  });
+  return detectedKey ? optionalNumberValue(record[detectedKey]) : null;
 }
 
 function textValue(value: unknown): string {
@@ -289,7 +306,7 @@ export async function getDashboard(selectedProjectId?: number): Promise<Dashboar
       id: numberValue(pick(row, "ID_OBR")),
       name: textValue(pick(row, "NOMBRE_OBR", "Nombre_Obr")),
       status: numberValue(pick(row, "ESTADO_OBR")) || 1,
-      deviationDays: optionalNumberValue(pick(row, "DesviacionDias", "DESVIACION_DIAS", "DesvDias", "DESV_DIAS")),
+      deviationDays: deviationValue(row),
     }))
     .filter((work) => work.id > 0 && work.status === 1);
 
@@ -308,7 +325,7 @@ export async function getDashboard(selectedProjectId?: number): Promise<Dashboar
       period: latest?.period ?? 0,
       controlDate: latest?.date || null,
       trend: latest && previous ? latest.cumulative - previous.cumulative : latest?.period ?? 0,
-      deviationDays: optionalNumberValue(pick((result.status === "fulfilled" ? rows(result.value).at(-1) : {}) ?? {}, "DesviacionDias", "DESVIACION_DIAS", "DesvDias", "DESV_DIAS"))
+      deviationDays: deviationValue((result.status === "fulfilled" ? rows(result.value).at(-1) : {}) ?? {})
         ?? work.deviationDays
         ?? (work.id === 69 ? -16 : null),
       controlCount: timeline.length,
