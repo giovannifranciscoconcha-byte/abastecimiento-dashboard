@@ -327,7 +327,9 @@ export async function getDashboard(selectedProjectId?: number): Promise<Dashboar
       controlDate: latest?.date || null,
       trend: latest && previous ? latest.cumulative - previous.cumulative : latest?.period ?? 0,
       deviationDays: deviationValue((result.status === "fulfilled" ? rows(result.value).at(-1) : {}) ?? {})
-        ?? work.deviationDays,
+        ?? work.deviationDays
+        // La API no informa campo de desviación para una obra sin atraso: se interpreta como 0.
+        ?? 0,
       controlCount: timeline.length,
       timeline,
       warning: result.status === "rejected" ? "No fue posible consultar sus controles." : undefined,
