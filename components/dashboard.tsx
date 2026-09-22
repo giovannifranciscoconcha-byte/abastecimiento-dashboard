@@ -22,7 +22,7 @@ function average(values: number[]) {
 }
 
 function delayPresentation(value: number | null) {
-  if (value === null) return { className: "unknown", value: "—", label: "Sin información" };
+  if (value === null) return { className: "unknown", value: "—", label: "No disponible en API" };
   if (value < 0) return { className: "late", value: `${Math.abs(value)}`, label: "días de atraso" };
   if (value > 0) return { className: "ahead", value: `${value}`, label: "días de adelanto" };
   return { className: "on-time", value: "0", label: "días · En plazo" };
