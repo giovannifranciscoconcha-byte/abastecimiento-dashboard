@@ -6,6 +6,14 @@ const API_URL = process.env.FOCO_API_URL ?? "https://apidataclient.azurewebsites
 let tokenCache: { value: string; expiresAt: number } | null = null;
 const detailCache = new Map<string, { payload: unknown; expiresAt: number }>();
 
+// Valores verificados en Avance > Control Interno > Reportes > Curva de Avance.
+// Si Planner se incorpora a la API, el valor recibido por API tiene prioridad.
+const plannerDeviationDays: Record<number, number> = {
+  68: -40,
+  69: -16,
+  70: -1,
+};
+
 function required(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Falta configurar ${name} en Vercel.`);
@@ -328,6 +336,7 @@ export async function getDashboard(selectedProjectId?: number): Promise<Dashboar
       trend: latest && previous ? latest.cumulative - previous.cumulative : latest?.period ?? 0,
       deviationDays: deviationValue((result.status === "fulfilled" ? rows(result.value).at(-1) : {}) ?? {})
         ?? work.deviationDays
+        ?? plannerDeviationDays[work.id]
         ?? null,
       controlCount: timeline.length,
       timeline,
