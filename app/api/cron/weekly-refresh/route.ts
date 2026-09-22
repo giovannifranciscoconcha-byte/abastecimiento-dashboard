@@ -23,6 +23,13 @@ export async function GET(request: Request) {
           id: project.id,
           name: project.name,
           controlDate: project.controlDate,
+          deviationDays: project.deviationDays,
+          deviationStatus: project.deviationDays === null
+            ? "sin_dato"
+            : project.deviationDays < 0
+              ? "atraso"
+              : "en_plazo",
+          deviationSource: project.deviationDays === null ? null : "curva-avance-foco",
           activities: detail.activities.length,
           towers: detail.building?.towers.length ?? 0,
         };
