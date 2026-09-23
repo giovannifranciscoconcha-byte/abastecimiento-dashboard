@@ -17,9 +17,9 @@ export type ProjectSummary = {
   deviationDays: number | null;
   programProgress: {
     reportDate: string;
-    actual: number;
-    planned: number;
-    deviation: number;
+    weeklyActual: number;
+    weeklyPlanned: number;
+    weeklyDeviation: number;
   } | null;
   controlCount: number;
   timeline: TimelinePoint[];
