@@ -1,4 +1,5 @@
 import { getDashboard, getProjectDetail } from "@/lib/foco-client";
+import { criticalRouteItems } from "@/lib/internal-report";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -30,6 +31,9 @@ export async function GET(request: Request) {
               ? "atraso"
               : "en_plazo",
           deviationSource: project.deviationDays === null ? null : "curva-avance-foco",
+          programProgress: project.programProgress,
+          criticalRouteAlerts: criticalRouteItems[project.id]?.length ?? 0,
+          criticalRouteSource: criticalRouteItems[project.id]?.length ? "ruta-critica-foco" : null,
           activities: detail.activities.length,
           towers: detail.building?.towers.length ?? 0,
         };
