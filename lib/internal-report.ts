@@ -1,8 +1,8 @@
 export type InternalProgramProgress = {
   reportDate: string;
-  actual: number;
-  planned: number;
-  deviation: number;
+  weeklyActual: number;
+  weeklyPlanned: number;
+  weeklyDeviation: number;
 };
 
 export type CriticalRouteItem = {
@@ -18,9 +18,9 @@ export type CriticalRouteItem = {
 // La API pública de avance no expone la curva programada ni la Ruta Crítica.
 // Cuando esos campos lleguen por API, deben prevalecer sobre este respaldo.
 export const internalProgramProgress: Record<number, InternalProgramProgress> = {
-  68: { reportDate: "2026-09-20", actual: 37.07, planned: 41.41, deviation: -4.33 },
-  69: { reportDate: "2026-09-20", actual: 29.08, planned: 31.28, deviation: -2.19 },
-  70: { reportDate: "2026-09-06", actual: 3.61, planned: 3.62, deviation: -0.01 },
+  68: { reportDate: "2026-09-20", weeklyActual: 0.65, weeklyPlanned: 0.76, weeklyDeviation: -0.11 },
+  69: { reportDate: "2026-09-20", weeklyActual: 0.40, weeklyPlanned: 0.92, weeklyDeviation: -0.52 },
+  70: { reportDate: "2026-09-06", weeklyActual: 0.10, weeklyPlanned: 0.12, weeklyDeviation: -0.01 },
 };
 
 export const criticalRouteItems: Record<number, CriticalRouteItem[]> = {
