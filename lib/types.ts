@@ -15,6 +15,12 @@ export type ProjectSummary = {
   controlDate: string | null;
   trend: number;
   deviationDays: number | null;
+  programProgress: {
+    reportDate: string;
+    actual: number;
+    planned: number;
+    deviation: number;
+  } | null;
   controlCount: number;
   timeline: TimelinePoint[];
   warning?: string;
