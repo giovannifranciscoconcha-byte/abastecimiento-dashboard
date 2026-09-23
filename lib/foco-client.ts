@@ -1,4 +1,5 @@
 import type { ActivityDetail, BuildingCell, BuildingFloor, BuildingProgressData, DashboardPayload, ProjectSummary, TimelinePoint } from "./types";
+import { internalProgramProgress } from "./internal-report";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -338,6 +339,7 @@ export async function getDashboard(selectedProjectId?: number): Promise<Dashboar
         ?? work.deviationDays
         ?? plannerDeviationDays[work.id]
         ?? null,
+      programProgress: internalProgramProgress[work.id] ?? null,
       controlCount: timeline.length,
       timeline,
       warning: result.status === "rejected" ? "No fue posible consultar sus controles." : undefined,
