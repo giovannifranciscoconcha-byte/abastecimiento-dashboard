@@ -28,6 +28,12 @@ export function demoDashboard(selectedId?: number): DashboardPayload {
     controlDate: "2026-09-15T12:00:00.000Z",
     trend: period,
     deviationDays: index % 3 === 0 ? -12 : index % 3 === 1 ? 0 : 7,
+    programProgress: {
+      reportDate: "2026-09-15T12:00:00.000Z",
+      actual: cumulative,
+      planned: Number((cumulative + (index % 2 === 0 ? 2.4 : -1.2)).toFixed(1)),
+      deviation: index % 2 === 0 ? -2.4 : 1.2,
+    },
     controlCount: 7,
     timeline: timeline(id, cumulative),
   })).sort((a, b) => b.cumulative - a.cumulative);
