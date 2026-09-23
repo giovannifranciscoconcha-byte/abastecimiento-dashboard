@@ -47,10 +47,11 @@ function ZoneRow({ label, cells, floorOrder, frontier }: {
   );
 }
 
-export function BuildingProgress({ data, loading, onActivityChange }: {
+export function BuildingProgress({ data, loading, onActivityChange, onFinishingClick }: {
   data: BuildingProgressData | null;
   loading: boolean;
   onActivityChange: (activity: string) => void;
+  onFinishingClick: () => void;
 }) {
   return (
     <article className="panel building-panel">
@@ -60,14 +61,17 @@ export function BuildingProgress({ data, loading, onActivityChange }: {
           <h2>Estructura por torre y piso</h2>
           <p className="panel-copy">Cada bloque representa un frente real de losa o muro informado en el último control.</p>
         </div>
-        {data?.activityOptions.length ? (
-          <label className="activity-select">
-            <span>Actividad</span>
-            <select value={data.activity} onChange={(event) => onActivityChange(event.target.value)} disabled={loading}>
-              {data.activityOptions.map((activity) => <option key={activity} value={activity}>{activity}</option>)}
-            </select>
-          </label>
-        ) : null}
+        <div className="building-actions">
+          <button type="button" className="finishing-button" onClick={onFinishingClick}>Ver avance de terminaciones</button>
+          {data?.activityOptions.length ? (
+            <label className="activity-select">
+              <span>Actividad</span>
+              <select value={data.activity} onChange={(event) => onActivityChange(event.target.value)} disabled={loading}>
+                {data.activityOptions.map((activity) => <option key={activity} value={activity}>{activity}</option>)}
+              </select>
+            </label>
+          ) : null}
+        </div>
       </div>
 
       <div className="building-legend" aria-label="Leyenda de avance">
