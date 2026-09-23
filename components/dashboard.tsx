@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import type { DashboardPayload } from "@/lib/types";
 import { ProgressRing, ProjectBars, TrendChart } from "./charts";
 import { BuildingProgress } from "./building-progress";
-import { AlertIcon, BuildingIcon, ChevronIcon, ClockIcon, RefreshIcon, SearchIcon, TrendIcon } from "./icons";
+import { AlertIcon, BuildingIcon, ChevronIcon, ClockIcon, RefreshIcon, SearchIcon } from "./icons";
+import { criticalRouteItems } from "@/lib/internal-report";
 
 function formatDate(value: string | null, withTime = false) {
   if (!value) return "Sin control";
@@ -17,16 +18,22 @@ function formatDate(value: string | null, withTime = false) {
   }).format(new Date(value));
 }
 
-function average(values: number[]) {
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
-}
-
 function delayPresentation(value: number | null) {
   if (value === null) return { className: "unknown", value: "—", label: "No disponible en API" };
   if (value < 0) return { className: "late", value: `${Math.abs(value)}`, label: "días de atraso" };
   if (value > 0) return { className: "ahead", value: `${value}`, label: "días de adelanto" };
   return { className: "on-time", value: "0", label: "días · En plazo" };
 }
+
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
+function formatShortDate(value: string) {
+  return new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", timeZone: "UTC" }).format(new Date(value));
+}
+
+const finishingPattern = /termin|revest|pintur|cer[aá]m|puerta|ventana|yeso|impermeabil|grada|zócalo|zocalo/i;
 
 async function fetchDashboard(projectId?: number): Promise<DashboardPayload> {
   const query = projectId ? `?projectId=${projectId}` : "";
@@ -55,6 +62,9 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [activitySearch, setActivitySearch] = useState("");
   const [activityFilter, setActivityFilter] = useState<"all" | "critical" | "complete">("all");
+  const [showFinishingSummary, setShowFinishingSummary] = useState(false);
+  const activitiesPanelRef = useRef<HTMLElement>(null);
+  const finishingSummaryRef = useRef<HTMLElement>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -131,8 +141,8 @@ export default function Dashboard() {
   }, []);
 
   const selected = data?.projects.find((project) => project.id === data.selectedProjectId) ?? null;
-  const projectAverage = average(data?.projects.map((project) => project.cumulative) ?? []);
-  const lowProgress = data?.projects.filter((project) => project.cumulative < 25).length ?? 0;
+  const selectedProgram = selected?.programProgress ?? null;
+  const selectedCriticalRoute = selected ? criticalRouteItems[selected.id] ?? [] : [];
   const filteredProjects = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("es");
     return data?.projects.filter((project) => project.name.toLocaleLowerCase("es").includes(query)) ?? [];
@@ -145,6 +155,23 @@ export default function Dashboard() {
       return matchesText && matchesState;
     });
   }, [activityFilter, activitySearch, data]);
+  const finishingActivities = useMemo(
+    () => (data?.activities ?? []).filter((activity) => !activity.chapter && finishingPattern.test(`${activity.name} ${activity.location}`)),
+    [data],
+  );
+  const finishingAverage = useMemo(
+    () => finishingActivities.length ? finishingActivities.reduce((sum, activity) => sum + activity.cumulative, 0) / finishingActivities.length : 0,
+    [finishingActivities],
+  );
+
+  const showActivities = useCallback(() => {
+    activitiesPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const showFinishing = useCallback(() => {
+    setShowFinishingSummary(true);
+    window.setTimeout(() => finishingSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }, []);
 
   if (loading && !data) {
     return <LoadingDashboard />;
@@ -185,8 +212,8 @@ export default function Dashboard() {
         <section className="intro-row">
           <div>
             <p className="eyebrow">PORTAFOLIO VIGENTE</p>
-            <h1>Avance de proyectos</h1>
-            <p className="intro-copy">Lectura consolidada del último control informado en cada obra.</p>
+            <h1>Avance programa interno (Foco en Obra)</h1>
+            <p className="intro-copy">Lectura de avance real, programa interno y riesgos de la última actualización disponible.</p>
           </div>
           <label className="select-wrap">
             <span>Obra seleccionada</span>
@@ -199,22 +226,31 @@ export default function Dashboard() {
           </label>
         </section>
 
-        <section className="metrics-grid">
-          <article className="metric-card primary-metric">
-            <div className="metric-icon"><BuildingIcon /></div>
-            <div><span>Proyectos vigentes</span><strong>{data?.projects.length ?? 0}</strong><small>obras monitoreadas</small></div>
-          </article>
-          <article className="metric-card">
-            <div className="metric-icon blue"><TrendIcon /></div>
-            <div><span>Avance promedio</span><strong>{projectAverage.toFixed(1)}%</strong><small>del portafolio vigente</small></div>
-          </article>
-          <article className="metric-card">
-            <div className="metric-icon green"><ClockIcon /></div>
-            <div><span>Avance último período</span><strong>{selected?.period.toFixed(1) ?? "0.0"}%</strong><small>{selected?.name ?? "obra seleccionada"}</small></div>
-          </article>
-          <article className="metric-card">
-            <div className="metric-icon amber"><AlertIcon /></div>
-            <div><span>Avance bajo 25%</span><strong>{lowProgress}</strong><small>proyectos en etapa inicial</small></div>
+        <section className="summary-layout">
+          <div className="metrics-grid summary-metrics">
+            <article className="metric-card primary-metric">
+              <div className="metric-icon"><BuildingIcon /></div>
+              <div><span>Proyectos vigentes</span><strong>{data?.projects.length ?? 0}</strong><small>obras monitoreadas</small></div>
+            </article>
+            <article className="metric-card program-metric">
+              <div className="metric-icon green"><ClockIcon /></div>
+              <div>
+                <span>Avance programa parcial</span>
+                {selectedProgram ? (
+                  <>
+                    <strong>{formatPercent(selectedProgram.actual)} <em>/ {formatPercent(selectedProgram.planned)}</em></strong>
+                    <small className={selectedProgram.deviation < 0 ? "negative" : "positive"}>Corte {formatShortDate(selectedProgram.reportDate)} · real / programado · {selectedProgram.deviation >= 0 ? "+" : ""}{selectedProgram.deviation.toFixed(1)} pp</small>
+                  </>
+                ) : <><strong>—</strong><small>Sin reporte interno configurado</small></>}
+              </div>
+            </article>
+          </div>
+          <article className="panel ranking-panel summary-ranking">
+            <div className="panel-heading">
+              <div><p className="eyebrow">COMPARATIVO</p><h2>Avance por proyecto</h2></div>
+              <label className="search-box"><SearchIcon /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar obra" /></label>
+            </div>
+            <ProjectBars projects={filteredProjects} selectedId={data?.selectedProjectId ?? null} onSelect={(id) => void selectProject(id)} />
           </article>
         </section>
 
@@ -254,6 +290,7 @@ export default function Dashboard() {
                 <div><span>Último control</span><strong>{formatDate(selected?.controlDate ?? null)}</strong></div>
                 <div><span>Variación</span><strong className={(selected?.trend ?? 0) >= 0 ? "positive" : "negative"}>{(selected?.trend ?? 0) >= 0 ? "+" : ""}{selected?.trend.toFixed(1) ?? "0.0"} pp</strong></div>
                 <div><span>Controles</span><strong>{selected?.controlCount ?? 0}</strong></div>
+                <button className="detail-link" type="button" onClick={showActivities}>Ver actividades y recintos <ChevronIcon /></button>
               </div>
             </div>
           </article>
@@ -271,18 +308,48 @@ export default function Dashboard() {
           data={data?.building ?? null}
           loading={loadingActivities || loadingBuilding}
           onActivityChange={(activity) => void selectBuildingActivity(activity)}
+          onFinishingClick={showFinishing}
         />
 
-        <section className="lower-grid">
-          <article className="panel ranking-panel">
+        {showFinishingSummary ? (
+          <section className="panel finishing-panel" ref={finishingSummaryRef}>
             <div className="panel-heading">
-              <div><p className="eyebrow">COMPARATIVO</p><h2>Avance por proyecto</h2></div>
-              <label className="search-box"><SearchIcon /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar obra" /></label>
+              <div><p className="eyebrow">AVANCE DE TERMINACIONES</p><h2>{selected?.name ?? "Obra seleccionada"}</h2></div>
+              <button className="detail-link" type="button" onClick={showActivities}>Ver detalle <ChevronIcon /></button>
             </div>
-            <ProjectBars projects={filteredProjects} selectedId={data?.selectedProjectId ?? null} onSelect={(id) => void selectProject(id)} />
-          </article>
+            {finishingActivities.length ? (
+              <div className="finishing-summary">
+                <div><span>Partidas registradas</span><strong>{finishingActivities.length}</strong></div>
+                <div><span>Avance promedio de partidas</span><strong>{formatPercent(finishingAverage)}</strong></div>
+                <div><span>Partidas iniciadas</span><strong>{finishingActivities.filter((activity) => activity.cumulative > 0).length}</strong></div>
+                <div><span>Partidas terminadas</span><strong>{finishingActivities.filter((activity) => activity.cumulative >= 100).length}</strong></div>
+              </div>
+            ) : <div className="chart-empty">No hay partidas de terminaciones registradas en el último control de esta obra.</div>}
+          </section>
+        ) : null}
 
-          <article className="panel activities-panel">
+        <section className="panel critical-route-panel">
+          <div className="panel-heading">
+            <div><p className="eyebrow">RUTA CRÍTICA</p><h2>Partidas atrasadas</h2></div>
+            <small>{selectedCriticalRoute.length ? `${selectedCriticalRoute.length} alertas relevantes` : "Sin atrasos informados"}</small>
+          </div>
+          {selectedCriticalRoute.length ? (
+            <div className="critical-route-list">
+              {selectedCriticalRoute.map((item) => (
+                <article className="critical-route-item" key={`${item.chapter}-${item.activity}`}>
+                  <div><span>{item.chapter}</span><strong>{item.activity}</strong></div>
+                  <div><span>Programado</span><strong>{formatPercent(item.planned)}</strong></div>
+                  <div><span>Real</span><strong>{formatPercent(item.actual)}</strong></div>
+                  <div className="critical-deviation"><span>Desviación</span><strong>{item.deviation.toFixed(1)} pp</strong><small>Saldo desde {formatShortDate(item.balanceStart)}</small></div>
+                </article>
+              ))}
+            </div>
+          ) : <div className="chart-empty">Este proyecto no tiene una Ruta Crítica configurada o no registra atrasos en el último reporte.</div>}
+        </section>
+
+        <section className="lower-grid single-column">
+
+          <article className="panel activities-panel" ref={activitiesPanelRef}>
             <div className="panel-heading activity-heading">
               <div><p className="eyebrow">DETALLE</p><h2>Actividades y recintos</h2></div>
               <label className="search-box"><SearchIcon /><input value={activitySearch} onChange={(event) => setActivitySearch(event.target.value)} placeholder="Buscar actividad" /></label>
