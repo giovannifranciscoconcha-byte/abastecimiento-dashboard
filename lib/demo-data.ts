@@ -30,9 +30,9 @@ export function demoDashboard(selectedId?: number): DashboardPayload {
     deviationDays: index % 3 === 0 ? -12 : index % 3 === 1 ? 0 : 7,
     programProgress: {
       reportDate: "2026-09-15T12:00:00.000Z",
-      actual: cumulative,
-      planned: Number((cumulative + (index % 2 === 0 ? 2.4 : -1.2)).toFixed(1)),
-      deviation: index % 2 === 0 ? -2.4 : 1.2,
+      weeklyActual: period,
+      weeklyPlanned: Number((period + (index % 2 === 0 ? 0.24 : -0.12)).toFixed(2)),
+      weeklyDeviation: index % 2 === 0 ? -0.24 : 0.12,
     },
     controlCount: 7,
     timeline: timeline(id, cumulative),
