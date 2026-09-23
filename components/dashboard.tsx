@@ -29,6 +29,10 @@ function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
 }
 
+function formatExactPercent(value: number) {
+  return `${value.toFixed(2)}%`;
+}
+
 function formatShortDate(value: string) {
   return new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", timeZone: "UTC" }).format(new Date(value));
 }
@@ -249,11 +253,11 @@ export default function Dashboard() {
             <article className="metric-card program-metric">
               <div className="metric-icon green"><ClockIcon /></div>
               <div>
-                <span>Avance programa parcial</span>
+                <span>Avance semanal</span>
                 {selectedProgram ? (
                   <>
-                    <strong>{formatPercent(selectedProgram.actual)} <em>/ {formatPercent(selectedProgram.planned)}</em></strong>
-                    <small className={selectedProgram.deviation < 0 ? "negative" : "positive"}>Corte {formatShortDate(selectedProgram.reportDate)} · real / programado · {selectedProgram.deviation >= 0 ? "+" : ""}{selectedProgram.deviation.toFixed(1)} pp</small>
+                    <strong>{formatExactPercent(selectedProgram.weeklyActual)}</strong>
+                    <small>Programado parcial: {formatExactPercent(selectedProgram.weeklyPlanned)} · Corte {formatShortDate(selectedProgram.reportDate)}</small>
                   </>
                 ) : <><strong>—</strong><small>Sin reporte interno configurado</small></>}
               </div>
