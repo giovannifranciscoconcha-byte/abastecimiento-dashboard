@@ -142,7 +142,7 @@ export default function Dashboard() {
 
   const selected = data?.projects.find((project) => project.id === data.selectedProjectId) ?? null;
   const selectedProgram = selected?.programProgress ?? null;
-  const selectedCriticalRoute = selected ? criticalRouteItems[selected.id] ?? [] : [];
+  const selectedCriticalRoute = useMemo(() => selected ? criticalRouteItems[selected.id] ?? [] : [], [selected]);
   const filteredProjects = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("es");
     return data?.projects.filter((project) => project.name.toLocaleLowerCase("es").includes(query)) ?? [];
@@ -159,10 +159,24 @@ export default function Dashboard() {
     () => (data?.activities ?? []).filter((activity) => !activity.chapter && finishingPattern.test(`${activity.name} ${activity.location}`)),
     [data],
   );
-  const finishingAverage = useMemo(
-    () => finishingActivities.length ? finishingActivities.reduce((sum, activity) => sum + activity.cumulative, 0) / finishingActivities.length : 0,
-    [finishingActivities],
+  const criticalFinishingItems = useMemo(
+    () => selectedCriticalRoute.filter((item) => finishingPattern.test(`${item.chapter} ${item.activity}`)),
+    [selectedCriticalRoute],
   );
+  const finishingAverage = useMemo(
+    () => {
+      if (finishingActivities.length) return finishingActivities.reduce((sum, activity) => sum + activity.cumulative, 0) / finishingActivities.length;
+      return criticalFinishingItems.length ? criticalFinishingItems.reduce((sum, item) => sum + item.actual, 0) / criticalFinishingItems.length : 0;
+    },
+    [criticalFinishingItems, finishingActivities],
+  );
+  const finishingCount = finishingActivities.length || criticalFinishingItems.length;
+  const finishingStarted = finishingActivities.length
+    ? finishingActivities.filter((activity) => activity.cumulative > 0).length
+    : criticalFinishingItems.filter((item) => item.actual > 0).length;
+  const finishingCompleted = finishingActivities.length
+    ? finishingActivities.filter((activity) => activity.cumulative >= 100).length
+    : criticalFinishingItems.filter((item) => item.actual >= 100).length;
 
   const showActivities = useCallback(() => {
     activitiesPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -317,12 +331,12 @@ export default function Dashboard() {
               <div><p className="eyebrow">AVANCE DE TERMINACIONES</p><h2>{selected?.name ?? "Obra seleccionada"}</h2></div>
               <button className="detail-link" type="button" onClick={showActivities}>Ver detalle <ChevronIcon /></button>
             </div>
-            {finishingActivities.length ? (
+            {finishingCount ? (
               <div className="finishing-summary">
-                <div><span>Partidas registradas</span><strong>{finishingActivities.length}</strong></div>
+                <div><span>{finishingActivities.length ? "Partidas registradas" : "Partidas críticas de terminaciones"}</span><strong>{finishingCount}</strong></div>
                 <div><span>Avance promedio de partidas</span><strong>{formatPercent(finishingAverage)}</strong></div>
-                <div><span>Partidas iniciadas</span><strong>{finishingActivities.filter((activity) => activity.cumulative > 0).length}</strong></div>
-                <div><span>Partidas terminadas</span><strong>{finishingActivities.filter((activity) => activity.cumulative >= 100).length}</strong></div>
+                <div><span>Partidas iniciadas</span><strong>{finishingStarted}</strong></div>
+                <div><span>Partidas terminadas</span><strong>{finishingCompleted}</strong></div>
               </div>
             ) : <div className="chart-empty">No hay partidas de terminaciones registradas en el último control de esta obra.</div>}
           </section>
