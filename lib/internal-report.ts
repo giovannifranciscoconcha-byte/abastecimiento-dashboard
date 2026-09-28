@@ -3,6 +3,10 @@ export type InternalProgramProgress = {
   weeklyActual: number;
   weeklyPlanned: number;
   weeklyDeviation: number;
+  cumulativeActual?: number;
+  cumulativePlanned?: number;
+  cumulativeDeviation?: number;
+  deviationDays?: number;
 };
 
 export type CriticalRouteItem = {
@@ -19,7 +23,17 @@ export type CriticalRouteItem = {
 // Cuando esos campos lleguen por API, deben prevalecer sobre este respaldo.
 export const internalProgramProgress: Record<number, InternalProgramProgress> = {
   68: { reportDate: "2026-09-20", weeklyActual: 0.65, weeklyPlanned: 0.76, weeklyDeviation: -0.11 },
-  69: { reportDate: "2026-09-20", weeklyActual: 0.40, weeklyPlanned: 0.92, weeklyDeviation: -0.52 },
+  // Corte 27-09-2026 verificado en Foco en Obra > Curva de Avance (físico).
+  69: {
+    reportDate: "2026-09-27",
+    weeklyActual: 0.90,
+    weeklyPlanned: 1.47,
+    weeklyDeviation: -0.57,
+    cumulativeActual: 29.99,
+    cumulativePlanned: 32.75,
+    cumulativeDeviation: -2.76,
+    deviationDays: -14,
+  },
   70: { reportDate: "2026-09-06", weeklyActual: 0.10, weeklyPlanned: 0.12, weeklyDeviation: -0.01 },
 };
 
